@@ -1,0 +1,22 @@
+[package]
+authors = ["Mick Sayson <mick@sayson.com>"]
+name = "id-ip"
+version = "0.1.0"
+
+[[bin]]
+name = "id-mac"
+path = "src/id-mac.rs"
+
+[[bin]]
+name = "id-ip"
+path = "src/id-ip.rs"
+
+[dependencies]
+error-chain = "0.11.0"
+hwaddr = "0.1.2"
+linear-map = "1.2.0"
+oping = "0.3.3"
+tempfile = "2.2.0"
+
+[dependencies.getifaddrs]
+git = "https://github.com/sphaerophoria/getifaddrs-rs"
