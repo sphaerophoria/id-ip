@@ -1,39 +1,39 @@
 #[macro_use] extern crate error_chain;
-extern crate linear_map;
 extern crate oping;
 extern crate tempfile;
+extern crate pnet;
+extern crate arp;
 extern crate getifaddrs;
-extern crate hwaddr;
 
 mod utils;
 mod errors;
 
 use errors::*;
 
-use linear_map::LinearMap;
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::fs::File;
 use std::io::{BufReader, BufRead, Write};
 use std::str::FromStr;
 use std::fs;
 use oping::Ping;
-use hwaddr::HwAddr;
+use pnet::util::MacAddr;
 
 
 quick_main!(run);
 
 // This function is terrrrribly inefficient
-fn find_in_arp_table(mac: &HwAddr) -> Result<Ipv4Addr> {
-    let f = File::open("/proc/net/arp").chain_err(||"Failed to open arp file")?;
-    let reader = BufReader::new(f);
-    let v = reader
-        .lines()
-        .skip(1)
-        .map(|s| s.unwrap().split_whitespace().map(|s| s.to_string()).collect::<Vec<_>>())
-        .map(|v| ( HwAddr::from_str(&v[3]).unwrap(), (Ipv4Addr::from_str(&v[0]).unwrap())))
-        .collect::<LinearMap<_,_>>();
+fn find_in_arp_table(mac: &MacAddr) -> Result<Ipv4Addr> {
+    let ip = arp::get_arp_table()
+        .chain_err(|| "Failed to get arp table")?
+        .into_iter()
+        .find(|entry| entry.mac == *mac)
+        .ok_or("Failed to find mac address in arp table")?
+        .ip;
 
-    Ok(v.get(&mac).ok_or("Failed to find mac in arp table")?.clone())
+    match ip {
+        IpAddr::V4(ip) => Ok(ip),
+        _ => bail!("Not an ipv4 addr"),
+    }
 }
 
 
