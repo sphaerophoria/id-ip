@@ -1,5 +1,5 @@
 #[macro_use] extern crate error_chain;
-extern crate pnet;
+extern crate eui48;
 
 mod utils;
 mod errors;

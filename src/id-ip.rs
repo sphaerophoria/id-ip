@@ -1,9 +1,9 @@
 #[macro_use] extern crate error_chain;
 extern crate oping;
 extern crate tempfile;
-extern crate pnet;
+extern crate pnet_datalink;
 extern crate arp;
-extern crate getifaddrs;
+extern crate eui48;
 
 mod utils;
 mod errors;
@@ -16,13 +16,12 @@ use std::io::{BufReader, BufRead, Write};
 use std::str::FromStr;
 use std::fs;
 use oping::Ping;
-use pnet::util::MacAddr;
+use eui48::MacAddress;
 
 
 quick_main!(run);
 
-// This function is terrrrribly inefficient
-fn find_in_arp_table(mac: &MacAddr) -> Result<Ipv4Addr> {
+fn find_in_arp_table(mac: &MacAddress) -> Result<Ipv4Addr> {
     let ip = arp::get_arp_table()
         .chain_err(|| "Failed to get arp table")?
         .into_iter()
@@ -38,11 +37,14 @@ fn find_in_arp_table(mac: &MacAddr) -> Result<Ipv4Addr> {
 
 
 fn ping_all_on_subnets() {
-    for addr in &getifaddrs::get_if_addrs().unwrap() {
+    for addr in pnet_datalink::interfaces().into_iter().flat_map(|iface| iface.ips.into_iter()) {
         let mut ping = Ping::new();
         ping.set_timeout(0.5).unwrap();
 
-        let netmask: u32 = unsafe {std::mem::transmute(addr.netmask.octets())};
+        let netmask: u32 = match addr.mask() {
+            IpAddr::V4(mask) => unsafe {std::mem::transmute(mask.octets())},
+            _ => panic!("ipv6 addrs not supported"),
+        };
 
         let mut netmask_positions = vec![];
         for i in 0..32 {
@@ -55,7 +57,11 @@ fn ping_all_on_subnets() {
             continue;
         }
 
-        let mut current_addr: u32 = unsafe {std::mem::transmute(addr.addr.octets())};
+        let mut current_addr: u32 = match addr.ip() {
+            IpAddr::V4(ip) => unsafe {std::mem::transmute(ip.octets())},
+            _ => panic!("IPv6 addrs not supported"),
+        };
+
         current_addr &= netmask;
 
         for i in 1..(1 << netmask_positions.len()) - 1 {
