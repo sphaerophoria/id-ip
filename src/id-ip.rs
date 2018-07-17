@@ -43,7 +43,7 @@ fn ping_all_on_subnets() {
 
         let netmask: u32 = match addr.mask() {
             IpAddr::V4(mask) => unsafe {std::mem::transmute(mask.octets())},
-            _ => panic!("ipv6 addrs not supported"),
+            _ => continue,
         };
 
         let mut netmask_positions = vec![];
@@ -59,7 +59,7 @@ fn ping_all_on_subnets() {
 
         let mut current_addr: u32 = match addr.ip() {
             IpAddr::V4(ip) => unsafe {std::mem::transmute(ip.octets())},
-            _ => panic!("IPv6 addrs not supported"),
+            _ => continue,
         };
 
         current_addr &= netmask;
